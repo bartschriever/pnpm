@@ -117,7 +117,7 @@ pub(super) fn check_entry(
             .find(|slot| {
                 !delegated
                     .iter()
-                    .any(|listed| listed.covers(slot))
+                    .any(|listed| listed.permits(slot))
             });
         if let Some(slot) = undelegated {
             return Err(IncludeError::SettingNotDelegated {

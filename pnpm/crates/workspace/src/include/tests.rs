@@ -767,6 +767,38 @@ fn nested_catalog_options_need_their_own_delegations() {
 }
 
 #[test]
+fn a_delegated_rule_map_permits_its_unused_policy() {
+    for (key, policy) in [("overrides", "ignore"), ("permissions", "error")] {
+        let fragment = format!("{key}: {{rules: {{example: {{}}}}, unused: {policy}}}\n");
+        let dir = workspace(&[
+            ("pnpm-workspace.yaml", &format!("include:\n  ./policy.yaml: [{key}]\n")),
+            ("policy.yaml", &fragment),
+        ]);
+        assert_eq!(merged(dir.path())[key]["unused"].as_str(), Some(policy), "{key}");
+    }
+}
+
+#[test]
+fn a_separately_delegated_unused_policy_stays_with_its_owner() {
+    for (key, alias) in
+        [("overrides", "warnUnusedOverrides"), ("permissions", "permissions.unused")]
+    {
+        let dir = workspace(&[
+            (
+                "pnpm-workspace.yaml",
+                &format!("include:\n  ./rules.yaml: [{key}]\n  ./policy.yaml: [{key}.unused]\n"),
+            ),
+            ("rules.yaml", &format!("{key}: {{rules: {{example: {{}}}}, unused: ignore}}\n")),
+            ("policy.yaml", ""),
+        ]);
+        assert!(
+            matches!(load(dir.path()), Err(IncludeError::DuplicateSetting {setting, ..}) if setting == alias),
+            "{key}",
+        );
+    }
+}
+
+#[test]
 fn relative_specifiers_in_nested_maps_are_relative_to_their_source() {
     let dir = workspace(&[
         ("pnpm-workspace.yaml", "include:\n  ./config/policy.yaml: '*'\n"),

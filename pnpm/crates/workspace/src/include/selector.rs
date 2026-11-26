@@ -51,10 +51,18 @@ impl SettingSlot {
         }
     }
 
-    /// Does a delegation of `self` permit defining `slot`?
+    /// Does a reservation of `self` claim `slot`?
     #[must_use]
     pub fn covers(&self, slot: &SettingSlot) -> bool {
         self == slot || matches!((self, slot), (SettingSlot::AllCatalogs, SettingSlot::Catalog(_)))
+    }
+
+    /// Does a delegation of `self` permit defining `slot`? A delegated rule
+    /// map also permits its own `unused` policy, which another source can
+    /// still reserve on its own.
+    #[must_use]
+    pub fn permits(&self, slot: &SettingSlot) -> bool {
+        self.covers(slot) || rule_map_of_policy(slot).is_some_and(|rule_map| self.covers(&rule_map))
     }
 }
 
@@ -70,6 +78,20 @@ impl fmt::Display for SettingSlot {
 }
 
 const DEFAULT_CATALOG: &str = "default";
+
+/// The rule map whose `unused` policy `slot` is. The catalog policies are not
+/// here: they apply to every catalog, not only to the default one.
+fn rule_map_of_policy(slot: &SettingSlot) -> Option<SettingSlot> {
+    let SettingSlot::Setting(name) = slot else {
+        return None;
+    };
+    let rule_map = match name.as_str() {
+        "warnUnusedOverrides" => "overrides",
+        "permissions.unused" => canonical_setting_name("permissions"),
+        _ => return None,
+    };
+    Some(SettingSlot::Setting(rule_map.to_string()))
+}
 
 /// Not a setting: an editor's schema association.
 pub(crate) const SCHEMA_DIRECTIVE_KEY: &str = "$schema";

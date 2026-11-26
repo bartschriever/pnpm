@@ -175,7 +175,7 @@ fn check_permitted(include: &Include, slot: &SettingSlot) -> Result<(), IncludeE
         Delegation::Listed(slots)
             if !slots
                 .iter()
-                .any(|listed| listed.covers(slot)) =>
+                .any(|listed| listed.permits(slot)) =>
         {
             Err(IncludeError::SettingNotDelegated {
                 setting: slot.to_string(),
